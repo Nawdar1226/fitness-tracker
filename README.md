@@ -5,7 +5,8 @@ Alle Daten bleiben lokal auf dem iPhone.
 
 ## Funktionen
 
-- **Heute**: zeigt automatisch das nächste Training (A ↔ B im Wechsel), den Tages-Check und die Gewichtseingabe
+- **Heute**: zeigt automatisch das nächste Training (Oberkörper A → Unterkörper A → Oberkörper B → Unterkörper B), den Tages-Check und die Gewichtseingabe
+- **Standardplan**: Oberkörper/Unterkörper 4× pro Woche, nur Maschine, Kabel und Smith-Maschine, ohne Kniebeuge und Kreuzheben
 - **Training**: Checkliste pro Übung mit kg und Wiederholungen. Die Werte vom letzten Mal sind vorausgefüllt. Wer alle Sätze am oberen Ende der Wiederholungsspanne schafft, bekommt den Vorschlag „+2,5 kg“. Nach jedem Satz läuft ein Pausen-Timer.
 - **Gewicht**: Tageswerte mit 7-Tage-Schnitt, Kurve, Veränderung seit Start und Tempo in kg pro Woche
 - **Verlauf**: Kalender und alle Trainings mit Details

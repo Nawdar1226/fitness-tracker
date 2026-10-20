@@ -74,6 +74,9 @@ h2 { font-size: 17px; font-weight: 700; }
 .hero .btn.primary, .hero .btn.full { margin-top: 18px; width: 100%; }
 .alt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; color: var(--muted); }
 .hint { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; color: var(--muted); }
+.offer { border: 1px solid var(--accent); background: var(--accent-soft); }
+.offer h2 { margin: 6px 0 6px; }
+.offer p { color: var(--muted); font-size: 15px; margin-bottom: 14px; }
 .nudge { border: 1px solid var(--border); background: transparent; }
 .nudge p { margin-bottom: 12px; color: var(--muted); font-size: 15px; }
 

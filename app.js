@@ -13,44 +13,71 @@
 /* ========== 1. Speicher & Datenmodell ========== */
 
 const STORE_KEY = 'fitness-tracker:v1';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const ex = (name, sets, reps) => ({ id: uid(), name, sets, reps });
 
+// Aktuelle Plan-Vorlage: Oberkörper/Unterkörper, 4× pro Woche, nur Maschine/Kabel/Smith
+const TEMPLATE_ID = 'ou4-maschine-v1';
+const TEMPLATE_NAME = 'Oberkörper/Unterkörper · 4× pro Woche';
+function templatePlans() {
+  return [
+    {
+      id: uid(), name: 'Oberkörper A', exercises: [
+        ex('Bankdrücken (Smith-Maschine)', 3, '6-8'),
+        ex('Rudern an der Maschine', 3, '8-10'),
+        ex('Schulterdrücken an der Maschine', 3, '8-10'),
+        ex('Latzug', 3, '8-10'),
+        ex('Seitheben am Kabel', 3, '12-15'),
+        ex('Trizepsdrücken am Kabel', 2, '10-12'),
+      ],
+    },
+    {
+      id: uid(), name: 'Unterkörper A', exercises: [
+        ex('Beinpresse', 3, '8-10'),
+        ex('Beinbeuger sitzend', 3, '10-12'),
+        ex('Hip Thrust (Smith-Maschine)', 3, '8-10'),
+        ex('Beinstrecker', 2, '12-15'),
+        ex('Wadenheben an der Maschine', 3, '10-15'),
+        ex('Cable Crunch', 3, '10-15'),
+      ],
+    },
+    {
+      id: uid(), name: 'Oberkörper B', exercises: [
+        ex('Schrägbankdrücken (Smith-Maschine)', 3, '8-10'),
+        ex('Kabelrudern sitzend', 3, '10-12'),
+        ex('Latzug eng / Klimmzug-Maschine', 3, '8-10'),
+        ex('Butterfly (Maschine oder Kabel)', 2, '12-15'),
+        ex('Face Pulls am Kabel', 3, '12-15'),
+        ex('Bizepscurls am Kabel', 2, '10-12'),
+      ],
+    },
+    {
+      id: uid(), name: 'Unterkörper B', exercises: [
+        ex('Hip Thrust (Smith-Maschine)', 3, '6-8'),
+        ex('Beinpresse (Füße hoch & breit)', 3, '10-12'),
+        ex('Beinbeuger liegend', 3, '10-12'),
+        ex('Rückenstrecker an der Maschine', 3, '10-12'),
+        ex('Wadenheben sitzend', 3, '12-15'),
+        ex('Hängendes Knieheben', 3, '10-15'),
+      ],
+    },
+  ];
+}
+const TEMPLATE_HABITS = ['Protein erreicht (~180 g)', 'Kalorien im Ziel (~2.300 kcal)', 'Süßes nur eingeplant', '10.000 Schritte'];
+// alte Standard-Texte → neue Texte (eigene Texte bleiben unverändert)
+const HABIT_UPDATES = { 'Kalorien im Ziel (~2.500 kcal)': 'Kalorien im Ziel (~2.300 kcal)', '8.000+ Schritte': '10.000 Schritte' };
+
+const BASE_SETTINGS = { goalWeight: null, restSeconds: 120, lastBackup: null, template: null, templateDismissed: null };
+
 function defaultState() {
   return {
     version: 1,
-    settings: { goalWeight: null, restSeconds: 120, lastBackup: null },
-    // Pläne werden der Reihe nach abgewechselt: A → B → A …
-    plans: [
-      {
-        id: uid(), name: 'Ganzkörper A', exercises: [
-          ex('Kniebeuge', 3, '6-8'),
-          ex('Bankdrücken', 3, '6-8'),
-          ex('Langhantelrudern', 3, '8-10'),
-          ex('Rumänisches Kreuzheben', 3, '8-10'),
-          ex('Seitheben', 3, '12-15'),
-          ex('Trizeps am Kabel', 2, '10-12'),
-        ],
-      },
-      {
-        id: uid(), name: 'Ganzkörper B', exercises: [
-          ex('Kreuzheben', 3, '5'),
-          ex('Schulterdrücken', 3, '6-8'),
-          ex('Klimmzüge / Latzug', 3, '8-10'),
-          ex('Bulgarian Split Squats', 3, '8-10'),
-          ex('Schrägbank Kurzhantel', 3, '8-10'),
-          ex('Bizepscurls', 2, '10-12'),
-        ],
-      },
-    ],
-    habits: [
-      { id: uid(), label: 'Protein erreicht (~180 g)' },
-      { id: uid(), label: 'Kalorien im Ziel (~2.500 kcal)' },
-      { id: uid(), label: 'Süßes nur eingeplant' },
-      { id: uid(), label: '8.000+ Schritte' },
-    ],
+    settings: Object.assign({}, BASE_SETTINGS, { template: TEMPLATE_ID }),
+    // Pläne werden der Reihe nach abgewechselt: Oberkörper A → Unterkörper A → Oberkörper B → Unterkörper B …
+    plans: templatePlans(),
+    habits: TEMPLATE_HABITS.map((label) => ({ id: uid(), label })),
     workouts: [],   // abgeschlossene Trainings
     weights: [],    // { date: 'YYYY-MM-DD', kg }
     days: {},       // { 'YYYY-MM-DD': { habits: { [habitId]: true } } }
@@ -58,14 +85,21 @@ function defaultState() {
   };
 }
 
+// Vorlage übernehmen: ersetzt die Pläne, Verlauf und Gewicht bleiben erhalten
+function applyTemplate() {
+  state.plans = templatePlans();
+  state.habits.forEach((h) => { if (HABIT_UPDATES[h.label]) h.label = HABIT_UPDATES[h.label]; });
+  state.settings.template = TEMPLATE_ID;
+  save();
+}
+
 function migrate(s) {
-  const d = defaultState();
-  const out = Object.assign(d, s);
-  out.settings = Object.assign(defaultState().settings, s.settings || {});
+  const out = Object.assign(defaultState(), s);
+  out.settings = Object.assign({}, BASE_SETTINGS, s.settings || {});
   out.workouts = Array.isArray(out.workouts) ? out.workouts : [];
   out.weights = Array.isArray(out.weights) ? out.weights : [];
   out.days = out.days && typeof out.days === 'object' ? out.days : {};
-  if (!Array.isArray(out.plans) || !out.plans.length) out.plans = defaultState().plans;
+  if (!Array.isArray(out.plans) || !out.plans.length) out.plans = templatePlans();
   if (!Array.isArray(out.habits)) out.habits = [];
   return out;
 }
@@ -444,9 +478,11 @@ function viewToday() {
   const latest = avgs[avgs.length - 1];
   const title = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Pause empfehlen, wenn gestern UND vorgestern trainiert wurde (Rhythmus 2 an, 1 aus)
+  const trainedOn = (k) => state.workouts.some((w) => w.date === k);
   let hint = '';
-  if (!doneToday && last && daysBetween(last.date, today) === 1) {
-    hint = '<div class="hint">Gestern trainiert – im 2-Tage-Rhythmus wäre heute Pause. Du entscheidest.</div>';
+  if (!doneToday && trainedOn(addDays(today, -1)) && trainedOn(addDays(today, -2))) {
+    hint = '<div class="hint">2 Tage in Folge trainiert – heute wäre ein Pausentag (Spaziergang zählt!).</div>';
   } else if (!last) {
     hint = '<div class="hint">Erstes Training nach der Pause: Nimm ca. 60–70 % deiner alten Gewichte. Sehnen brauchen länger als Muskeln.</div>';
   }
@@ -494,7 +530,18 @@ function viewToday() {
       <button class="btn full" data-act="export">Backup sichern</button>
     </section>` : '';
 
-  return `<h1 class="title">${esc(title)}</h1>${hero}${habits}${weight}${nudge}`;
+  const offer = state.settings.template !== TEMPLATE_ID && state.settings.templateDismissed !== TEMPLATE_ID ? `
+    <section class="card offer">
+      <div class="eyebrow">Neuer Plan</div>
+      <h2>${esc(TEMPLATE_NAME)}</h2>
+      <p>Ohne Kniebeuge und Kreuzheben, nur Maschine, Kabel und Smith-Maschine. Ersetzt deine aktuellen Pläne – Verlauf und Gewicht bleiben.</p>
+      <div class="row">
+        <button class="btn primary" data-act="tpl-apply">Übernehmen</button>
+        <button class="btn" data-act="tpl-dismiss">Nein danke</button>
+      </div>
+    </section>` : '';
+
+  return `<h1 class="title">${esc(title)}</h1>${offer}${hero}${habits}${weight}${nudge}`;
 }
 
 /* --- Laufendes Training --- */
@@ -699,7 +746,7 @@ function viewPlan() {
   const lbText = lb ? new Date(lb).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) : 'noch nie';
   return `
     <h1 class="title">Plan</h1>
-    <p class="muted intro">Die Pläne wechseln sich der Reihe nach ab (A → B → A …). Änderungen werden automatisch gespeichert.</p>
+    <p class="muted intro">Die Pläne wechseln sich der Reihe nach ab (von oben nach unten, dann wieder von vorn). Änderungen werden automatisch gespeichert.</p>
     ${state.plans.map((p, pi) => `
       <section class="card">
         <div class="plan-head">
@@ -719,6 +766,12 @@ function viewPlan() {
         <button class="link" data-act="exadd" data-pi="${pi}">+ Übung hinzufügen</button>
       </section>`).join('')}
     <button class="btn full" data-act="planadd" style="margin-bottom:12px">+ Weiteren Plan hinzufügen</button>
+
+    <section class="card">
+      <h2>Vorlage</h2>
+      <p class="muted" style="margin-bottom:12px">${esc(TEMPLATE_NAME)} – nur Maschine, Kabel und Smith-Maschine. Setzt die Pläne oben auf die Vorlage zurück.</p>
+      <button class="btn full" data-act="tpl-apply" data-confirm="1">Vorlage laden</button>
+    </section>
 
     <section class="card">
       <h2>Tages-Check</h2>
@@ -930,6 +983,18 @@ document.addEventListener('click', (ev) => {
       save();
       render();
       break;
+    case 'tpl-apply':
+      if (d.confirm && !confirm(`Vorlage „${TEMPLATE_NAME}“ laden? Deine aktuellen Pläne werden ersetzt, Verlauf und Gewicht bleiben.`)) break;
+      applyTemplate();
+      window.scrollTo(0, 0);
+      render();
+      toast('Neuer Plan übernommen 💪');
+      break;
+    case 'tpl-dismiss':
+      state.settings.templateDismissed = TEMPLATE_ID;
+      save();
+      render();
+      break;
     case 'export':
       exportData();
       break;
@@ -1045,6 +1110,15 @@ function init() {
   $('#tabs').innerHTML = TABS.map((t) => `<button data-act="tab" data-tab="${t.id}">${ICON[t.id]}<span>${t.label}</span></button>`).join('');
   render();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // Neue Version geladen → einmal neu laden, damit sie sofort aktiv ist
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+      if (!typing) location.reload();
+    });
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
   if (navigator.storage && navigator.storage.persist) {
