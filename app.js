@@ -13,34 +13,37 @@
 /* ========== 1. Speicher & Datenmodell ========== */
 
 const STORE_KEY = 'fitness-tracker:v1';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const ex = (name, sets, reps) => ({ id: uid(), name, sets, reps });
 
-// Aktuelle Plan-Vorlage: Oberkörper/Unterkörper, 4× pro Woche, nur Maschine/Kabel/Smith
-const TEMPLATE_ID = 'ou4-maschine-v1';
+// Aktuelle Plan-Vorlage: Oberkörper/Unterkörper, 4× pro Woche, nur Maschine/Kabel/Smith.
+// v2: angepasst an viel Sitzen (mehr Zug- als Druckübungen, Po, Rumpf) + Cardio am Ende.
+const TEMPLATE_ID = 'ou4-maschine-v2';
 const TEMPLATE_NAME = 'Oberkörper/Unterkörper · 4× pro Woche';
 function templatePlans() {
   return [
     {
       id: uid(), name: 'Oberkörper A', exercises: [
-        ex('Bankdrücken (Smith-Maschine)', 3, '6-8'),
-        ex('Rudern an der Maschine', 3, '8-10'),
-        ex('Schulterdrücken an der Maschine', 3, '8-10'),
-        ex('Latzug', 3, '8-10'),
-        ex('Seitheben am Kabel', 3, '12-15'),
+        ex('Bankdrücken (Smith-Maschine)', 3, '8-10'),
+        ex('Rudern an der Maschine', 3, '10-12'),
+        ex('Latzug', 3, '10-12'),
+        ex('Schulterdrücken an der Maschine', 2, '10-12'),
+        ex('Reverse Butterfly (Maschine)', 3, '12-15'),
         ex('Trizepsdrücken am Kabel', 2, '10-12'),
+        ex('Cardio: Laufband Steigung (Minuten)', 1, '20'),
       ],
     },
     {
       id: uid(), name: 'Unterkörper A', exercises: [
-        ex('Beinpresse', 3, '8-10'),
-        ex('Beinbeuger sitzend', 3, '10-12'),
+        ex('Beinpresse', 3, '10-12'),
         ex('Hip Thrust (Smith-Maschine)', 3, '8-10'),
-        ex('Beinstrecker', 2, '12-15'),
-        ex('Wadenheben an der Maschine', 3, '10-15'),
-        ex('Cable Crunch', 3, '10-15'),
+        ex('Beinbeuger sitzend', 3, '10-12'),
+        ex('Abduktor-Maschine', 2, '15-20'),
+        ex('Wadenheben an der Maschine', 3, '12-15'),
+        ex('Pallof Press am Kabel (je Seite)', 2, '10-12'),
+        ex('Cardio: Fahrrad (Minuten)', 1, '20'),
       ],
     },
     {
@@ -48,9 +51,10 @@ function templatePlans() {
         ex('Schrägbankdrücken (Smith-Maschine)', 3, '8-10'),
         ex('Kabelrudern sitzend', 3, '10-12'),
         ex('Latzug eng / Klimmzug-Maschine', 3, '8-10'),
-        ex('Butterfly (Maschine oder Kabel)', 2, '12-15'),
         ex('Face Pulls am Kabel', 3, '12-15'),
+        ex('Seitheben am Kabel', 3, '12-15'),
         ex('Bizepscurls am Kabel', 2, '10-12'),
+        ex('Cardio: Laufband Steigung (Minuten)', 1, '20'),
       ],
     },
     {
@@ -59,8 +63,9 @@ function templatePlans() {
         ex('Beinpresse (Füße hoch & breit)', 3, '10-12'),
         ex('Beinbeuger liegend', 3, '10-12'),
         ex('Rückenstrecker an der Maschine', 3, '10-12'),
-        ex('Wadenheben sitzend', 3, '12-15'),
-        ex('Hängendes Knieheben', 3, '10-15'),
+        ex('Beinstrecker', 2, '12-15'),
+        ex('Cable Crunch', 3, '10-15'),
+        ex('Cardio: Crosstrainer (Minuten)', 1, '20'),
       ],
     },
   ];
@@ -534,7 +539,7 @@ function viewToday() {
     <section class="card offer">
       <div class="eyebrow">Neuer Plan</div>
       <h2>${esc(TEMPLATE_NAME)}</h2>
-      <p>Ohne Kniebeuge und Kreuzheben, nur Maschine, Kabel und Smith-Maschine. Ersetzt deine aktuellen Pläne – Verlauf und Gewicht bleiben.</p>
+      <p>Ohne Kniebeuge und Kreuzheben, nur Maschine, Kabel und Smith. Angepasst an viel Sitzen: mehr Rücken, Po und Rumpf, plus 20 min Cardio am Ende. Ersetzt deine aktuellen Pläne – Verlauf und Gewicht bleiben.</p>
       <div class="row">
         <button class="btn primary" data-act="tpl-apply">Übernehmen</button>
         <button class="btn" data-act="tpl-dismiss">Nein danke</button>

@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig (z. B. im Gym ohne Empfang).
 // Bei jeder Code-Änderung die Versionsnummer erhöhen, damit das iPhone die neuen Dateien lädt.
-const CACHE = 'fitness-tracker-v1.1.0';
+const CACHE = 'fitness-tracker-v1.2.0';
 const ASSETS = [
   './',
   './index.html',
