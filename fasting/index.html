@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F1F3F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C111E" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="轻断食">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>轻断食计时</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one phone-width column. The timer ring is the hero with a single "开始吃饭" tap; coffee, streak, records and settings stack below. */
+  --bg:#F1F3F8;
+  --surface:#FFFFFF;
+  --ink:#16203A;
+  --muted:#5A6479;
+  --line:#DCE1EB;
+  --fast:#2F43C2;
+  --fast-soft:#E5E8FA;
+  --eat:#B8681A;
+  --eat-soft:#FAEDDD;
+  --good:#1F8455;
+  --good-soft:#DDF2E7;
+  --warn:#B4441A;
+  --on-accent:#FFFFFF;
+  --font-display:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-body:"Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --radius:16px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C111E; --surface:#151C2E; --ink:#E7EBF4; --muted:#98A2B8; --line:#273149;
+    --fast:#8E9CFF; --fast-soft:#1F2652; --eat:#F0A65B; --eat-soft:#3A2915;
+    --good:#4CC28A; --good-soft:#133326; --warn:#F08A5D; --on-accent:#0C111E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C111E; --surface:#151C2E; --ink:#E7EBF4; --muted:#98A2B8; --line:#273149;
+  --fast:#8E9CFF; --fast-soft:#1F2652; --eat:#F0A65B; --eat-soft:#3A2915;
+  --good:#4CC28A; --good-soft:#133326; --warn:#F08A5D; --on-accent:#0C111E;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+.app{max-width:480px;margin:0 auto;padding:20px 16px 110px;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h1{font-size:24px;line-height:1.2;margin:0;letter-spacing:.02em;text-wrap:balance}
+h2{font-size:16px;line-height:1.3;margin:0;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);font-size:14px}
+.sync{font-size:12px;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;white-space:nowrap;margin-top:4px}
+.sync[data-s="synced"]{color:var(--good);background:var(--good-soft);border-color:transparent}
+.sync[data-s="offline"],.sync[data-s="readonly"]{color:var(--warn)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+
+/* Hero */
+.hero{--ph:var(--muted);--ph-soft:var(--bg);display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 18px 18px}
+.hero[data-phase="fasting"]{--ph:var(--fast);--ph-soft:var(--fast-soft)}
+.hero[data-phase="eating"]{--ph:var(--eat);--ph-soft:var(--eat-soft)}
+.hero[data-phase="done"]{--ph:var(--good);--ph-soft:var(--good-soft)}
+.hero[data-phase="late"]{--ph:var(--warn);--ph-soft:var(--eat-soft)}
+.pill{font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--ph);background:var(--ph-soft);border-radius:999px;padding:4px 12px;display:inline-flex;align-items:center;gap:6px}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ph)}
+.ring-wrap{position:relative;width:min(260px,74vw);aspect-ratio:1}
+.ring{width:100%;height:100%;display:block}
+.ring circle{fill:none;stroke-width:14}
+.ring .track{stroke:var(--ph-soft)}
+.ring .prog{stroke:var(--ph);stroke-linecap:round;transform:rotate(-90deg);transform-origin:110px 110px;transition:stroke-dashoffset .6s ease,stroke .3s ease}
+.ring-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px}
+.ring-label{font-size:14px;color:var(--muted)}
+.ring-time{font-family:var(--font-display);font-weight:600;font-size:clamp(34px,10.5vw,46px);line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;color:var(--ink)}
+.ring-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.times{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin:0}
+.times > div{background:var(--bg);border-radius:12px;padding:10px 12px;min-width:0}
+.times dt{font-size:12px;color:var(--muted)}
+.times dd{margin:0;font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+.hint{margin:0;font-size:14px;color:var(--muted);text-align:center;max-width:36ch}
+.hint.warn{color:var(--warn)}
+.today-meals{margin:0;font-size:14px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.today-meals b{color:var(--ink);font-weight:500}
+
+.actions{width:100%;display:flex;flex-direction:column;gap:10px}
+.btn{--btn:var(--fast);font:inherit;font-weight:700;font-size:17px;border-radius:14px;padding:14px 16px;border:1.5px solid var(--btn);cursor:pointer;width:100%;background:var(--btn);color:var(--on-accent);transition:transform .08s ease, filter .15s ease}
+.btn:active{transform:scale(.985)}
+.btn:hover{filter:brightness(1.05)}
+.btn[data-kind="eat"]{--btn:var(--eat)}
+.btn[data-kind="fast"]{--btn:var(--fast)}
+.btn.big{font-size:19px;padding:17px 16px}
+.btn.ghost{background:transparent;color:var(--btn)}
+.btn.small{font-size:15px;padding:10px 14px;width:auto;flex:1}
+.links{display:flex;justify-content:center;flex-wrap:wrap;gap:2px 18px}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;text-decoration:underline;text-underline-offset:3px;padding:6px 4px;cursor:pointer}
+.link.strong{color:var(--fast);font-weight:500}
+:focus-visible{outline:3px solid var(--fast);outline-offset:2px;border-radius:8px}
+
+.panel{width:100%;display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:12px;padding:14px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:13px;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-height:46px;display:block;-webkit-appearance:none;appearance:none}
+textarea{min-height:90px;font-size:13px;font-family:var(--font-display);resize:vertical}
+.err{color:var(--warn);font-size:13px;margin:0}
+.err:empty{display:none}
+.row{display:flex;gap:8px}
+
+/* Coffee */
+.coffee-main{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.big{font-family:var(--font-display);font-weight:600;font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.chip{font-size:13px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.chip.ok{color:var(--good);background:var(--good-soft)}
+.chip.no{color:var(--warn);background:var(--eat-soft)}
+.meta{margin:6px 0 0;font-size:14px;color:var(--muted)}
+.rule{margin:12px 0 0;padding-top:12px;border-top:1px dashed var(--line);font-size:14px;color:var(--muted)}
+
+/* Streak */
+.streak-main{display:flex;align-items:baseline;gap:8px}
+.streak-main .big{font-size:44px;color:var(--good)}
+.streak-main .unit{font-weight:700}
+.strip{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;margin-top:14px}
+.day{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:0}
+.dot{width:100%;max-width:20px;aspect-ratio:1;border-radius:6px;background:var(--bg);border:1px solid var(--line)}
+.dot.ok{background:var(--good);border-color:var(--good)}
+.dot.part{background:var(--eat-soft);border-color:var(--eat)}
+.dot.live{border:2px dashed var(--fast);background:var(--fast-soft)}
+.day.today span{color:var(--ink);font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line);background:var(--bg)}
+.legend i.ok{background:var(--good);border-color:var(--good)}
+.legend i.part{background:var(--eat-soft);border-color:var(--eat)}
+
+/* Fast records */
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hist li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line);align-items:center}
+.hist li:first-child{border-top:0;padding-top:4px}
+.h-day{font-weight:500}
+.h-range{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.h-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.h-dur{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.badge.ok{color:var(--good);background:var(--good-soft)}
+.badge.no{color:var(--eat);background:var(--eat-soft)}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.more{font-size:13px;color:var(--muted);margin:8px 0 0}
+
+/* Meals */
+.mdays{display:flex;flex-direction:column}
+.mday{display:grid;grid-template-columns:72px 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--line);align-items:start}
+.mday:first-child{border-top:0;padding-top:2px}
+.mday-label{font-size:14px;font-weight:500;padding-top:4px;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.mchip{font:inherit;font-size:14px;font-variant-numeric:tabular-nums;background:var(--eat-soft);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:3px 8px 3px 10px;cursor:pointer;display:inline-flex;gap:4px;align-items:center;min-height:32px}
+.mchip .x{color:var(--muted);font-size:13px}
+.mchip[data-armed="1"]{background:var(--warn);color:var(--on-accent)}
+.mchip[data-armed="1"] .x{color:var(--on-accent)}
+
+/* Settings */
+.set-group{display:flex;flex-direction:column;gap:8px}
+.set-group + .set-group{margin-top:16px}
+.set-label{font-size:13px;color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg button{font:inherit;cursor:pointer;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.seg b{font-family:var(--font-display);font-size:18px;font-weight:600}
+.seg small{font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--fast);border-color:var(--fast);color:var(--on-accent)}
+.seg button[aria-pressed="true"] small{color:var(--on-accent);opacity:.85}
+
+.foot{font-size:13px;color:var(--muted);text-align:center;margin:4px 0 0;padding:0 8px}
+
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:14px;max-width:calc(100% - 32px);width:max-content;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:15px;z-index:10}
+.toast button{background:none;border:0;color:inherit;font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 2px;white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  .ring .prog,.btn{transition:none}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>轻断食</h1>
+      <p class="sub" id="planSub">16:8 · 禁食 16 小时，进食 8 小时</p>
+    </div>
+    <span class="sync" id="sync" data-s="local">本机</span>
+  </header>
+
+  <section class="card hero" id="hero" data-phase="idle" aria-live="polite">
+    <span class="pill" id="pill">未开始</span>
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 220 220" aria-hidden="true">
+        <circle class="track" cx="110" cy="110" r="96"></circle>
+        <circle class="prog" id="prog" cx="110" cy="110" r="96"></circle>
+      </svg>
+      <div class="ring-text">
+        <div class="ring-label" id="ringLabel">还没有记录</div>
+        <div class="ring-time" id="ringTime">0:00:00</div>
+        <div class="ring-sub" id="ringSub">16:8</div>
+      </div>
+    </div>
+    <dl class="times">
+      <div><dt id="t1Label">建议进食窗口</dt><dd id="t1">—</dd></div>
+      <div><dt id="t2Label">或者</dt><dd id="t2">—</dd></div>
+    </dl>
+    <p class="hint" id="hint"></p>
+
+    <div class="actions">
+      <button class="btn big" id="btnEat" type="button" data-kind="eat">开始吃饭</button>
+      <p class="today-meals" id="todayMeals" hidden></p>
+      <div class="links">
+        <button class="link strong" id="btnPick" type="button">忘了按？补记一顿</button>
+      </div>
+    </div>
+
+    <form class="panel" id="picker" hidden novalidate>
+      <div class="field">
+        <label for="pickInput">这顿饭开始吃的时间</label>
+        <input type="datetime-local" id="pickInput">
+      </div>
+      <p class="err" id="pickErr" role="alert"></p>
+      <div class="row">
+        <button type="submit" class="btn small" data-kind="eat">记下这顿</button>
+        <button type="button" class="btn small ghost" id="pickCancel" data-kind="eat">取消</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="coffeeCard">
+    <div class="card-head"><h2>黑咖啡截止时间</h2><span class="chip ok" id="coffeeChip">还可以喝</span></div>
+    <div class="coffee-main">
+      <span class="big" id="coffeeTime">15:00</span>
+      <span class="meta" id="coffeeLeft" style="margin:0">距离截止还有 —</span>
+    </div>
+    <p class="meta" id="coffeeNote">按睡前 8 小时算，你的睡觉时间是 23:00</p>
+    <p class="rule">禁食期间可以喝：水、黑咖啡、无糖茶。咖啡里加糖、加奶都算破禁食。</p>
+  </section>
+
+  <section class="card" id="streakCard">
+    <div class="card-head"><h2>连续打卡</h2><span class="meta" id="streakBest" style="margin:0">最长 0 天</span></div>
+    <div class="streak-main"><span class="big" id="streakNum">0</span><span class="unit">天</span></div>
+    <p class="meta" id="streakMsg">完成一次达标的禁食就开始计数</p>
+    <div class="strip" id="strip" aria-label="最近 14 天"></div>
+    <div class="legend"><span><i class="ok"></i>达标</span><span><i class="part"></i>有禁食但没达标</span><span><i></i>没有记录</span></div>
+  </section>
+
+  <section class="card" id="histCard">
+    <div class="card-head"><h2>禁食记录</h2></div>
+    <p class="meta" id="histStats" style="margin:0 0 8px" hidden></p>
+    <ol class="hist" id="hist"></ol>
+    <p class="empty" id="histEmpty">每天第一次按“开始吃饭”时，会自动记下前一晚的禁食。</p>
+    <p class="more" id="histMore" hidden></p>
+  </section>
+
+  <section class="card" id="mealCard">
+    <div class="card-head"><h2>吃饭记录</h2><span class="meta" style="margin:0">点一下可删除</span></div>
+    <div class="mdays" id="mdays"></div>
+    <p class="empty" id="mealEmpty">还没有记过饭点。</p>
+  </section>
+
+  <section class="card" id="setCard">
+    <div class="card-head"><h2>设置</h2></div>
+    <div class="set-group">
+      <span class="set-label" id="planLabel">禁食方案（禁食:进食，小时）</span>
+      <div class="seg" role="group" aria-labelledby="planLabel" id="segPlan">
+        <button type="button" data-h="14" aria-pressed="false"><b>14:10</b><small>入门</small></button>
+        <button type="button" data-h="16" aria-pressed="true"><b>16:8</b><small>最常用</small></button>
+        <button type="button" data-h="18" aria-pressed="false"><b>18:6</b><small>进阶</small></button>
+      </div>
+    </div>
+    <div class="set-group">
+      <span class="set-label" id="mealLabel">一顿饭大约吃多久（禁食从吃完开始算）</span>
+      <div class="seg" role="group" aria-labelledby="mealLabel" id="segMeal">
+        <button type="button" data-m="15" aria-pressed="false"><b>15</b><small>分钟</small></button>
+        <button type="button" data-m="30" aria-pressed="true"><b>30</b><small>分钟</small></button>
+        <button type="button" data-m="45" aria-pressed="false"><b>45</b><small>分钟</small></button>
+      </div>
+    </div>
+    <div class="set-group">
+      <label class="set-label" for="bedtime">平时几点睡觉（用来算咖啡截止时间）</label>
+      <input type="time" id="bedtime" value="23:00">
+    </div>
+    <div class="set-group">
+      <span class="set-label">备份</span>
+      <div class="row">
+        <button type="button" class="btn small ghost" id="btnExport" data-kind="fast">复制备份</button>
+        <button type="button" class="btn small ghost" id="btnImport" data-kind="fast">粘贴恢复</button>
+      </div>
+      <form class="panel" id="importForm" hidden novalidate>
+        <div class="field">
+          <label for="importText">把之前复制的备份粘贴到这里</label>
+          <textarea id="importText" spellcheck="false"></textarea>
+        </div>
+        <p class="err" id="importErr" role="alert"></p>
+        <div class="row">
+          <button type="submit" class="btn small" data-kind="fast">恢复</button>
+          <button type="button" class="btn small ghost" id="importCancel" data-kind="fast">取消</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <p class="foot" id="foot">进食窗口尽量放在白天，晚饭早点吃，对改善胰岛素敏感性效果更好。</p>
+</main>
+
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toastMsg"></span>
+  <button type="button" id="toastUndo">撤销</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var H = 3600e3, MIN = 60e3, DAY = 24 * H;
+var DAY_START = 4 * H;              // 凌晨 4 点前吃的算前一天
+var DUP_GAP = 10 * MIN;             // 10 分钟内重复按不算新的一顿
+var LS_KEY = 'qingduanshi-v1';
+var PLANS = [14, 16, 18], MEAL_MINS = [15, 30, 45];
+var WEEK = ['周日','周一','周二','周三','周四','周五','周六'];
+var C = 2 * Math.PI * 96;
+
+function $(id){ return document.getElementById(id); }
+function pad(n){ return String(n).padStart(2, '0'); }
+
+/* ---------- state ---------- */
+function defaults(){
+  return { v:2, settings:{ fastHours:16, bedtime:'23:00', mealMin:30 }, meals:[], updatedAt:0 };
+}
+function sanitize(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  var d = defaults();
+  var s = (raw.settings && typeof raw.settings === 'object') ? raw.settings : {};
+  var fh = Number(s.fastHours), mm = Number(s.mealMin);
+  d.settings.fastHours = PLANS.indexOf(fh) >= 0 ? fh : 16;
+  d.settings.bedtime = (typeof s.bedtime === 'string' && /^\d{2}:\d{2}$/.test(s.bedtime)) ? s.bedtime : '23:00';
+  d.settings.mealMin = MEAL_MINS.indexOf(mm) >= 0 ? mm : 30;
+  var src = [];
+  if (Array.isArray(raw.meals)) {
+    src = raw.meals;
+  } else {
+    // 旧版本（按开始/结束两下）的数据转换成饭点
+    var md = d.settings.mealMin * MIN;
+    (Array.isArray(raw.history) ? raw.history : []).forEach(function(r){
+      if (r && Number.isFinite(r.start) && Number.isFinite(r.end) && r.end > r.start) {
+        src.push({ t:r.start - md, plan:r.target });
+        src.push({ t:r.end, plan:r.target });
+      }
+    });
+    if (raw.phase === 'eating' && Number.isFinite(raw.phaseStart)) src.push({ t:raw.phaseStart, plan:d.settings.fastHours });
+    if (raw.phase === 'fasting' && Number.isFinite(raw.phaseStart)) src.push({ t:raw.phaseStart - md, plan:d.settings.fastHours });
+  }
+  var list = src.filter(function(m){ return m && Number.isFinite(m.t); }).map(function(m){
+    var p = Number(m.plan);
+    return { t:Math.round(m.t), plan: PLANS.indexOf(p) >= 0 ? p : d.settings.fastHours };
+  }).sort(function(a,b){ return a.t - b.t; });
+  var out = [];
+  list.forEach(function(m){ if (!out.length || m.t - out[out.length - 1].t >= MIN) out.push(m); });
+  d.meals = out.slice(-3000);
+  d.updatedAt = Number.isFinite(raw.updatedAt) ? raw.updatedAt : 0;
+  return d;
+}
+function hasData(s){
+  return s.meals.length > 0 || s.settings.fastHours !== 16 || s.settings.bedtime !== '23:00' || s.settings.mealMin !== 30;
+}
+function loadLocal(){
+  try { var v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+}
+function saveLocal(s){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch(e){}
+}
+var state = sanitize(loadLocal()) || defaults();
+
+/* ---------- time helpers ---------- */
+function startOfDay(ms){ var d = new Date(ms); d.setHours(0,0,0,0); return d.getTime(); }
+function addDays(ms, n){ var d = new Date(ms); d.setDate(d.getDate() + n); d.setHours(0,0,0,0); return d.getTime(); }
+function lday(ms){ return startOfDay(ms - DAY_START); }      // 这一天的 0 点（凌晨 4 点换日）
+function dayKey(ms){ var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function hm(ms){ var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function dayDiff(a, b){ return Math.round((startOfDay(a) - startOfDay(b)) / DAY); }
+function relName(dayMs, refDayMs){
+  var diff = dayDiff(dayMs, refDayMs);
+  if (diff === 0) return '今天';
+  if (diff === 1) return '明天';
+  if (diff === -1) return '昨天';
+  var d = new Date(dayMs);
+  return (d.getMonth()+1) + '月' + d.getDate() + '日';
+}
+function fmtWhen(ms){ return relName(ms, Date.now()) + ' ' + hm(ms); }
+function fmtClock(ms, ceil){
+  var s = ceil ? Math.ceil(ms / 1000) : Math.floor(ms / 1000);
+  if (s < 0) s = 0;
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h + ':' + pad(m) + ':' + pad(sec);
+}
+function fmtDur(ms){
+  var total = Math.max(0, Math.round(ms / MIN));
+  var h = Math.floor(total / 60), m = total % 60;
+  if (h === 0) return m + ' 分钟';
+  return h + ' 小时' + (m ? ' ' + m + ' 分' : '');
+}
+function toLocalInput(ms){
+  var d = new Date(ms);
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function fromLocalInput(v){
+  var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+  if (!m) return NaN;
+  return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], 0, 0).getTime();
+}
+function clockAdd(hhmm, hours){
+  var p = hhmm.split(':').map(Number), t = (p[0] * 60 + p[1] + hours * 60) % 1440;
+  return pad(Math.floor(t / 60)) + ':' + pad(t % 60);
+}
+
+/* ---------- derived from meals ---------- */
+// 每天的第一顿饭结束前一晚的禁食：从上一顿吃完到这一顿开始
+function deriveFasts(){
+  var md = state.settings.mealMin * MIN, ms = state.meals, res = [];
+  for (var i = 1; i < ms.length; i++) {
+    if (lday(ms[i].t) !== lday(ms[i-1].t)) {
+      var st = ms[i-1].t + md, en = ms[i].t;
+      if (en > st) res.push({ start:st, end:en, target:ms[i].plan });
+    }
+  }
+  return res;
+}
+function achieved(f){ return (f.end - f.start) >= f.target * H - MIN; }
+
+function status(now){
+  var fh = state.settings.fastHours, eh = 24 - fh, md = state.settings.mealMin * MIN, ms = state.meals;
+  if (!ms.length) return { kind:'idle', fh:fh, eh:eh };
+  var last = ms[ms.length - 1].t, fs = last + md, target = fs + fh * H, ld = lday(last), ws = last, n = 0;
+  for (var i = ms.length - 1; i >= 0 && lday(ms[i].t) === ld; i--) { ws = ms[i].t; n++; }
+  var dl = ws + eh * H;
+  var kind = now < fs ? (now < dl ? 'eating' : 'lateMeal') : (now < dl ? 'window' : 'fasting');
+  return { kind:kind, last:last, fs:fs, target:target, ws:ws, dl:dl, fh:fh, eh:eh, n:n };
+}
+function liveDone(now){
+  var s = status(now);
+  return s.kind === 'fasting' && now - s.fs >= s.fh * H;
+}
+function computeDays(now){
+  var ach = {}, part = {};
+  function markRange(start, end, val){
+    var endDay = lday(end), d = addDays(lday(start), 1), guard = 0;
+    if (d > endDay) d = endDay;
+    for (; d <= endDay && guard < 60; d = addDays(d, 1), guard++) { if (!ach[dayKey(d)]) ach[dayKey(d)] = val; }
+  }
+  deriveFasts().forEach(function(f){
+    if (achieved(f)) markRange(f.start, f.end, true);
+    else part[dayKey(lday(f.end))] = true;
+  });
+  var s = status(now);
+  if (s.kind === 'fasting' && now - s.fs >= s.fh * H) markRange(s.fs, now, 'live');
+  return { ach:ach, part:part };
+}
+function currentStreak(ach, now){
+  var d = lday(now);
+  if (!ach[dayKey(d)]) d = addDays(d, -1);
+  var n = 0;
+  while (ach[dayKey(d)]) { n++; d = addDays(d, -1); }
+  return n;
+}
+function bestStreak(ach){
+  var keys = Object.keys(ach).sort(), best = 0, run = 0, prev = null;
+  keys.forEach(function(k){
+    var p = k.split('-').map(Number), ms = new Date(p[0], p[1]-1, p[2]).getTime();
+    run = (prev != null && dayKey(addDays(prev, 1)) === k) ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = ms;
+  });
+  return best;
+}
+function coffeeCut(now){
+  var p = state.settings.bedtime.split(':').map(Number);
+  var bed = p[0] * 60 + p[1];
+  if (bed < 12 * 60) bed += 1440;       // 过了午夜才睡，算作当晚
+  var d = new Date(startOfDay(now));
+  d.setMinutes(bed - 8 * 60);
+  return d.getTime();
+}
+
+function phaseView(now){
+  var s = status(now);
+  if (s.kind === 'idle') {
+    return { phase:'idle', pill:'未开始', label:'还没有记录', time:'0:00:00', sub:s.fh + ':' + s.eh, p:0,
+      t1L:'建议进食窗口', t1:'08:00–' + clockAdd('08:00', s.eh), t2L:'或者', t2:'10:00–' + clockAdd('10:00', s.eh),
+      hint:'每次开始吃饭时按一下就行，不用按“吃完”。最后一顿之后，app 会自己算禁食。' };
+  }
+  if (s.kind === 'eating') {
+    var dlD = new Date(s.dl);
+    var lateWin = dayDiff(s.dl, s.ws) > 0 || (dlD.getHours() * 60 + dlD.getMinutes()) > 20 * 60;
+    return { phase:'eating', pill:'吃饭中', label:'进食窗口还剩', time:fmtClock(s.dl - now, true),
+      sub:'今天第 ' + s.n + ' 顿', p:(now - s.ws) / (s.eh * H),
+      t1L:'窗口开始', t1:fmtWhen(s.ws), t2L:'窗口截止', t2:fmtWhen(s.dl),
+      hint: (lateWin && s.n === 1) ? '这次进食窗口结束得比较晚。早吃早停效果更好，下次可以试着早点吃第一顿。' : '吃完不用按。之后不再吃的话，会从这顿吃完开始自动算禁食。',
+      warn: lateWin && s.n === 1 };
+  }
+  if (s.kind === 'lateMeal') {
+    return { phase:'late', pill:'窗口外进食', label:'已超出进食窗口', time:fmtClock(now - s.dl, false),
+      sub:'吃完后自动开始禁食', p:1,
+      t1L:'窗口截止', t1:fmtWhen(s.dl), t2L:'下一顿可以吃', t2:fmtWhen(s.target),
+      hint:'没关系，吃完不用按，禁食会从这顿吃完开始算。' };
+  }
+  if (s.kind === 'window') {
+    return { phase:'eating', pill:'进食窗口', label:'进食窗口还剩', time:fmtClock(s.dl - now, true),
+      sub:'距上一顿 ' + fmtDur(now - s.last), p:(now - s.ws) / (s.eh * H),
+      t1L:'窗口截止', t1:fmtWhen(s.dl), t2L:'不再吃的话可以吃', t2:fmtWhen(s.target),
+      hint:'如果上一顿就是今天最后一餐，什么都不用按，禁食已经从 ' + hm(s.fs) + ' 开始算了。' };
+  }
+  var el = now - s.fs, rem = s.target - now;
+  if (rem <= 0) {
+    return { phase:'done', pill:'已达标', label:'已禁食', time:fmtClock(el, false),
+      sub:'超出目标 ' + fmtDur(el - s.fh * H), p:1,
+      t1L:'最后一餐', t1:fmtWhen(s.last), t2L:'可以吃饭', t2:'现在就可以',
+      hint: el > 48 * H ? '好久没记了？下次开始吃饭时按一下就行。' : '已经达标。开始吃饭时按一下，这次禁食就会记下来。' };
+  }
+  return { phase:'fasting', pill:'禁食中', label:'还需禁食', time:fmtClock(rem, true),
+    sub:'已禁食 ' + fmtDur(el), p:el / (s.fh * H),
+    t1L:'最后一餐', t1:fmtWhen(s.last), t2L:'可以吃饭', t2:fmtWhen(s.target),
+    hint:'口渴、嘴馋就喝水、黑咖啡或无糖茶。' };
+}
+
+/* ---------- rendering ---------- */
+var el = {
+  hero:$('hero'), pill:$('pill'), prog:$('prog'), ringLabel:$('ringLabel'), ringTime:$('ringTime'), ringSub:$('ringSub'),
+  t1L:$('t1Label'), t1:$('t1'), t2L:$('t2Label'), t2:$('t2'), hint:$('hint'), todayMeals:$('todayMeals'),
+  btnEat:$('btnEat'), btnPick:$('btnPick'), picker:$('picker'), pickInput:$('pickInput'), pickErr:$('pickErr'),
+  coffeeChip:$('coffeeChip'), coffeeTime:$('coffeeTime'), coffeeLeft:$('coffeeLeft'), coffeeNote:$('coffeeNote'),
+  streakNum:$('streakNum'), streakBest:$('streakBest'), streakMsg:$('streakMsg'), strip:$('strip'),
+  hist:$('hist'), histEmpty:$('histEmpty'), histMore:$('histMore'), histStats:$('histStats'),
+  mdays:$('mdays'), mealEmpty:$('mealEmpty'),
+  segPlan:$('segPlan'), segMeal:$('segMeal'), bedtime:$('bedtime'), planSub:$('planSub'), sync:$('sync'), foot:$('foot'),
+  importForm:$('importForm'), importText:$('importText'), importErr:$('importErr'),
+  toast:$('toast'), toastMsg:$('toastMsg'), toastUndo:$('toastUndo')
+};
+el.prog.style.strokeDasharray = C.toFixed(2);
+var lastKey = null;
+
+function renderTick(){
+  var now = Date.now(), v = phaseView(now);
+  el.hero.dataset.phase = v.phase;
+  el.pill.textContent = v.pill;
+  el.ringLabel.textContent = v.label;
+  el.ringTime.textContent = v.time;
+  el.ringSub.textContent = v.sub;
+  el.prog.style.strokeDashoffset = (C * (1 - Math.max(0, Math.min(1, v.p)))).toFixed(2);
+  el.t1L.textContent = v.t1L; el.t1.textContent = v.t1;
+  el.t2L.textContent = v.t2L; el.t2.textContent = v.t2;
+  el.hint.textContent = v.hint || '';
+  el.hint.classList.toggle('warn', !!v.warn);
+
+  var cut = coffeeCut(now);
+  el.coffeeTime.textContent = hm(cut);
+  if (now < cut) {
+    el.coffeeChip.className = 'chip ok'; el.coffeeChip.textContent = '还可以喝';
+    el.coffeeLeft.textContent = '距离截止还有 ' + fmtDur(cut - now);
+  } else {
+    el.coffeeChip.className = 'chip no'; el.coffeeChip.textContent = '今天别再喝了';
+    el.coffeeLeft.textContent = '再喝会影响今晚的睡眠';
+  }
+
+  var key = dayKey(lday(now)) + '|' + liveDone(now) + '|' + status(now).kind;
+  if (key !== lastKey) { lastKey = key; renderStatic(); }
+}
+
+function renderStatic(){
+  var now = Date.now(), fh = state.settings.fastHours, eh = 24 - fh, today = lday(now);
+  el.planSub.textContent = fh + ':' + eh + ' · 禁食 ' + fh + ' 小时，进食 ' + eh + ' 小时';
+  Array.prototype.forEach.call(el.segPlan.querySelectorAll('button'), function(b){
+    b.setAttribute('aria-pressed', String(Number(b.dataset.h) === fh));
+  });
+  Array.prototype.forEach.call(el.segMeal.querySelectorAll('button'), function(b){
+    b.setAttribute('aria-pressed', String(Number(b.dataset.m) === state.settings.mealMin));
+  });
+  if (document.activeElement !== el.bedtime) el.bedtime.value = state.settings.bedtime;
+  el.coffeeNote.textContent = '按睡前 8 小时算，你的睡觉时间是 ' + state.settings.bedtime;
+
+  // today's meals line
+  var todays = state.meals.filter(function(m){ return lday(m.t) === today; });
+  el.todayMeals.hidden = todays.length === 0;
+  el.todayMeals.textContent = '';
+  if (todays.length) {
+    el.todayMeals.appendChild(document.createTextNode('今天记了 ' + todays.length + ' 顿：'));
+    var b = document.createElement('b');
+    b.textContent = todays.map(function(m){ return hm(m.t); }).join('、');
+    el.todayMeals.appendChild(b);
+  }
+
+  // streak
+  var days = computeDays(now), st = currentStreak(days.ach, now), best = bestStreak(days.ach);
+  el.streakNum.textContent = st;
+  el.streakBest.textContent = '最长 ' + best + ' 天';
+  var todayVal = days.ach[dayKey(today)];
+  if (st === 0) el.streakMsg.textContent = '完成一次达标的禁食就开始计数';
+  else if (todayVal) el.streakMsg.textContent = todayVal === 'live' ? '这次禁食已经达标，继续保持' : '今天已经达标';
+  else el.streakMsg.textContent = '今天完成一次达标的禁食，就能变成 ' + (st + 1) + ' 天';
+
+  var s = status(now);
+  el.strip.textContent = '';
+  for (var i = 13; i >= 0; i--) {
+    var d = addDays(today, -i), k = dayKey(d), dd = new Date(d);
+    var wrap = document.createElement('div');
+    wrap.className = 'day' + (i === 0 ? ' today' : '');
+    var dot = document.createElement('div');
+    var cls = 'dot';
+    if (days.ach[k]) cls += ' ok';
+    else if (days.part[k]) cls += ' part';
+    else if (i === 0 && s.kind === 'fasting') cls += ' live';
+    dot.className = cls;
+    var lab = document.createElement('span');
+    lab.textContent = dd.getDate();
+    wrap.title = (dd.getMonth()+1) + '月' + dd.getDate() + '日 ' + WEEK[dd.getDay()] +
+      (days.ach[k] ? ' · 达标' : days.part[k] ? ' · 没达标' : ' · 没有记录');
+    wrap.appendChild(dot); wrap.appendChild(lab);
+    el.strip.appendChild(wrap);
+  }
+
+  // fasting records
+  var fasts = deriveFasts().reverse();
+  el.hist.textContent = '';
+  el.histEmpty.hidden = fasts.length > 0;
+  if (fasts.length) {
+    var recent = fasts.slice(0, 7);
+    var avg = recent.reduce(function(a, f){ return a + (f.end - f.start); }, 0) / recent.length;
+    var okN = fasts.filter(achieved).length;
+    el.histStats.hidden = false;
+    el.histStats.textContent = '共 ' + fasts.length + ' 次，达标 ' + okN + ' 次 · 最近 ' + recent.length + ' 次平均 ' + (avg / H).toFixed(1) + ' 小时';
+  } else {
+    el.histStats.hidden = true;
+  }
+  fasts.slice(0, 30).forEach(function(f){
+    var li = document.createElement('li');
+    var left = document.createElement('div');
+    var dEl = document.createElement('div');
+    dEl.className = 'h-day';
+    var endDay = lday(f.end);
+    dEl.textContent = relName(endDay, today) + ' ' + WEEK[new Date(endDay).getDay()];
+    var rg = document.createElement('div');
+    rg.className = 'h-range';
+    var gap = dayDiff(f.end, f.start);
+    rg.textContent = (gap === 0 ? '' : gap === 1 ? '前一天 ' : gap + ' 天前 ') + hm(f.start) + ' → ' + hm(f.end);
+    left.appendChild(dEl); left.appendChild(rg);
+    var right = document.createElement('div');
+    right.className = 'h-right';
+    var du = document.createElement('span');
+    du.className = 'h-dur';
+    du.textContent = fmtDur(f.end - f.start);
+    var bd = document.createElement('span');
+    var ok = achieved(f);
+    bd.className = 'badge ' + (ok ? 'ok' : 'no');
+    bd.textContent = ok ? '达标 · ' + f.target + 'h' : '没达标 · 目标 ' + f.target + 'h';
+    right.appendChild(du); right.appendChild(bd);
+    li.appendChild(left); li.appendChild(right);
+    el.hist.appendChild(li);
+  });
+  el.histMore.hidden = fasts.length <= 30;
+  el.histMore.textContent = '只显示最近 30 次，较早的记录仍然算在连续天数里。';
+
+  // meals by day (last 10 days with meals)
+  var groups = [], map = {};
+  for (var j = state.meals.length - 1; j >= 0; j--) {
+    var m = state.meals[j], ld = lday(m.t), gk = String(ld);
+    if (!map[gk]) {
+      if (groups.length >= 7) break;
+      map[gk] = { day:ld, items:[] }; groups.push(map[gk]);
+    }
+    map[gk].items.unshift(m);
+  }
+  el.mdays.textContent = '';
+  el.mealEmpty.hidden = groups.length > 0;
+  groups.forEach(function(g){
+    var row = document.createElement('div');
+    row.className = 'mday';
+    var lab = document.createElement('div');
+    lab.className = 'mday-label';
+    lab.textContent = relName(g.day, today);
+    lab.title = WEEK[new Date(g.day).getDay()];
+    var chips = document.createElement('div');
+    chips.className = 'chips';
+    g.items.forEach(function(m){
+      var c = document.createElement('button');
+      c.type = 'button'; c.className = 'mchip';
+      var t = document.createElement('span'); t.textContent = hm(m.t);
+      var x = document.createElement('span'); x.className = 'x'; x.textContent = '×';
+      c.appendChild(t); c.appendChild(x);
+      c.setAttribute('aria-label', '删除 ' + fmtWhen(m.t) + ' 这顿');
+      c.addEventListener('click', function(){
+        if (c.dataset.armed === '1') { deleteMeal(m.t); return; }
+        c.dataset.armed = '1'; t.textContent = '删除 ' + hm(m.t) + '？';
+        setTimeout(function(){ if (c.isConnected) { c.dataset.armed = ''; t.textContent = hm(m.t); } }, 3500);
+      });
+      chips.appendChild(c);
+    });
+    row.appendChild(lab); row.appendChild(chips);
+    el.mdays.appendChild(row);
+  });
+}
+
+function renderAll(){ lastKey = null; renderTick(); }
+
+/* ---------- actions ---------- */
+var undoSnap = null, toastTimer = null;
+function commit(){
+  state.updatedAt = Date.now();
+  saveLocal(state);
+  renderAll();
+  dirty = true;
+  flush();
+}
+function act(mutator, msg){
+  var before = JSON.stringify(state);
+  if (mutator() === false) return false;
+  undoSnap = before;
+  commit();
+  showToast(msg, true);
+  return true;
+}
+function showToast(msg, canUndo){
+  el.toastMsg.textContent = msg;
+  el.toastUndo.hidden = !canUndo;
+  el.toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.toast.hidden = true; undoSnap = null; }, 7000);
+}
+el.toastUndo.addEventListener('click', function(){
+  if (!undoSnap) return;
+  var s = sanitize(JSON.parse(undoSnap));
+  undoSnap = null;
+  if (s) { state = s; commit(); showToast('已撤销', false); }
+});
+
+function nearMeal(t){
+  return state.meals.filter(function(m){ return Math.abs(m.t - t) < DUP_GAP; })[0] || null;
+}
+function addMeal(t, manual){
+  var fh = state.settings.fastHours, md = state.settings.mealMin * MIN;
+  var prev = null;
+  for (var i = state.meals.length - 1; i >= 0; i--) { if (state.meals[i].t < t) { prev = state.meals[i]; break; } }
+  var msg;
+  if (manual) msg = '已补记 ' + fmtWhen(t) + ' 这顿';
+  else if (prev && lday(prev.t) !== lday(t)) {
+    var dur = t - (prev.t + md);
+    msg = '这次禁食 ' + fmtDur(dur) + (dur >= fh * H - MIN ? '，达标了' : '，没到 ' + fh + ' 小时') + '。已记下这顿';
+  } else {
+    var n = state.meals.filter(function(m){ return lday(m.t) === lday(t); }).length + 1;
+    msg = '已记下今天第 ' + n + ' 顿，' + hm(t);
+  }
+  return act(function(){
+    state.meals.push({ t:t, plan:fh });
+    state.meals.sort(function(a,b){ return a.t - b.t; });
+  }, msg);
+}
+function deleteMeal(t){
+  act(function(){ state.meals = state.meals.filter(function(m){ return m.t !== t; }); }, '已删除 ' + fmtWhen(t) + ' 这顿');
+}
+
+el.btnEat.addEventListener('click', function(){
+  el.picker.hidden = true;
+  var now = Date.now(), near = nearMeal(now);
+  if (near) {
+    showToast(Math.max(1, Math.round((now - near.t) / MIN)) + ' 分钟前刚记过一顿，这次不重复记', false);
+    return;
+  }
+  addMeal(now, false);
+});
+
+/* ---------- manual meal ---------- */
+el.btnPick.addEventListener('click', function(){
+  if (!el.picker.hidden) { el.picker.hidden = true; return; }
+  var now = Date.now();
+  el.pickErr.textContent = '';
+  el.pickInput.max = toLocalInput(now);
+  el.pickInput.value = toLocalInput(now - 30 * MIN);
+  el.picker.hidden = false;
+  el.pickInput.focus();
+});
+$('pickCancel').addEventListener('click', function(){ el.picker.hidden = true; });
+el.picker.addEventListener('submit', function(e){
+  e.preventDefault();
+  var t = fromLocalInput(el.pickInput.value), now = Date.now(), err = '';
+  if (!Number.isFinite(t)) err = '请选择日期和时间';
+  else if (t > now + MIN) err = '不能选将来的时间';
+  else if (t < now - 14 * DAY) err = '只能补记最近 14 天内的饭';
+  else if (nearMeal(t)) err = '这个时间前后 10 分钟内已经记过一顿了';
+  if (err) { el.pickErr.textContent = err; return; }
+  el.picker.hidden = true;
+  addMeal(t, true);
+});
+
+/* ---------- settings ---------- */
+el.segPlan.addEventListener('click', function(e){
+  var b = e.target.closest('button[data-h]');
+  if (!b) return;
+  var h = Number(b.dataset.h);
+  if (h === state.settings.fastHours) return;
+  act(function(){ state.settings.fastHours = h; }, '已切换到 ' + h + ':' + (24 - h));
+});
+el.segMeal.addEventListener('click', function(e){
+  var b = e.target.closest('button[data-m]');
+  if (!b) return;
+  var m = Number(b.dataset.m);
+  if (m === state.settings.mealMin) return;
+  act(function(){ state.settings.mealMin = m; }, '每顿按 ' + m + ' 分钟算');
+});
+el.bedtime.addEventListener('change', function(){
+  var v = el.bedtime.value;
+  if (!/^\d{2}:\d{2}$/.test(v) || v === state.settings.bedtime) return;
+  state.settings.bedtime = v;
+  commit();
+});
+
+/* ---------- backup ---------- */
+$('btnExport').addEventListener('click', function(){
+  var text = JSON.stringify(state);
+  var done = function(){ showToast('备份已复制，可以粘贴到备忘录保存', false); };
+  try {
+    navigator.clipboard.writeText(text).then(done, function(){
+      el.importForm.hidden = false; el.importText.value = text; el.importText.select();
+      showToast('没法自动复制，请手动复制下面的文字', false);
+    });
+  } catch(e){
+    el.importForm.hidden = false; el.importText.value = text; el.importText.select();
+    showToast('没法自动复制，请手动复制下面的文字', false);
+  }
+});
+$('btnImport').addEventListener('click', function(){
+  el.importForm.hidden = !el.importForm.hidden;
+  el.importErr.textContent = '';
+  if (!el.importForm.hidden) { el.importText.value = ''; el.importText.focus(); }
+});
+$('importCancel').addEventListener('click', function(){ el.importForm.hidden = true; });
+el.importForm.addEventListener('submit', function(e){
+  e.preventDefault();
+  var parsed = null;
+  try { parsed = sanitize(JSON.parse(el.importText.value.trim())); } catch(err){}
+  if (!parsed) { el.importErr.textContent = '这段文字不是有效的备份，请整段复制后再粘贴'; return; }
+  el.importForm.hidden = true;
+  act(function(){ var keep = state.updatedAt; state = parsed; state.updatedAt = keep; }, '已恢复 ' + parsed.meals.length + ' 顿饭的记录');
+});
+
+/* ---------- cloud sync (只在 Claude 里打开时可用) ---------- */
+var docRef = null, dirty = false, inflight = false;
+var TIP = '进食窗口尽量放在白天，晚饭早点吃，对改善胰岛素敏感性效果更好。';
+var SYNC_TEXT = {
+  local:['本机', '记录保存在这台设备上，可以在设置里复制备份。'],
+  connecting:['同步中…', '正在连接你的 Claude 账户。'],
+  synced:['已同步', '记录保存在你的 Claude 账户里，换设备打开也在。'],
+  offline:['云端连不上', '暂时连不上云端，记录先存在本机，连上后会同步。'],
+  readonly:['只存本机', '这个账户不能写入云端，记录只保存在这台设备上。']
+};
+function setSync(s){
+  el.sync.dataset.s = s;
+  el.sync.textContent = SYNC_TEXT[s][0];
+  el.foot.textContent = SYNC_TEXT[s][1] + ' ' + TIP;
+}
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function flush(){
+  if (!docRef || inflight || !dirty) return;
+  inflight = true; dirty = false;
+  var body = JSON.parse(JSON.stringify(state));
+  docRef.set(body).then(function(){ setSync('synced'); }, function(e){
+    var code = e && e.code;
+    if (code === 'unavailable') {
+      return sleep(700 + Math.random() * 900).then(function(){ return docRef.set(body); })
+        .then(function(){ setSync('synced'); }, function(){ setSync('offline'); dirty = true; });
+    }
+    if (code === 'invalid_argument') { setSync('readonly'); docRef = null; return; }
+    if (code === 'revoked' || code === 'not_granted' || code === 'capability_disabled' || code === 'capability_removed') { setSync('local'); docRef = null; return; }
+    setSync('offline');
+  }).then(function(){
+    inflight = false;
+    if (dirty && docRef) flush();
+  });
+}
+function adopt(data){
+  var r = sanitize(data);
+  if (r && r.updatedAt > state.updatedAt) { state = r; saveLocal(state); el.picker.hidden = true; renderAll(); }
+}
+async function initCloud(){
+  if (!window.claude || typeof window.claude.use !== 'function') { setSync('local'); return; }
+  setSync('connecting');
+  var db = null, user = null;
+  try { var res = await Promise.all([window.claude.use('db'), window.claude.use('user')]); db = res[0]; user = res[1]; } catch(e){}
+  if (!db || !user) { setSync('local'); return; }
+  var uid = null;
+  try { uid = await user.id(); } catch(e){}
+  if (!uid) { setSync('local'); return; }
+  var ref;
+  try { ref = db.doc('data/users/' + uid + '/fasting'); } catch(e){ setSync('local'); return; }
+  var answered = false;
+  var timer = setTimeout(function(){ if (!answered) setSync('offline'); }, 10000);
+  var snap;
+  try { snap = await ref.get(); }
+  catch(e){ answered = true; clearTimeout(timer); setSync(e && e.code === 'unavailable' ? 'offline' : 'local'); return; }
+  answered = true; clearTimeout(timer);
+  docRef = ref;
+  if (snap.exists) {
+    var remote = sanitize(snap.data());
+    if (remote && remote.updatedAt > state.updatedAt) adopt(snap.data());
+    else if (remote && state.updatedAt > remote.updatedAt) dirty = true;
+  } else if (hasData(state)) {
+    dirty = true;
+  }
+  setSync('synced');
+  flush();
+  ref.onSnapshot(function(s){
+    if (!s.exists || s.metadata.hasPendingWrites) return;
+    adopt(s.data());
+  }, function(e){
+    setSync(e && e.code === 'revoked' ? 'local' : 'offline');
+  });
+}
+
+/* ---------- start ---------- */
+renderAll();
+setSync('local');
+setInterval(renderTick, 1000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) renderAll(); });
+initCloud();
+
+// 放到主屏幕时：离线可用，并请求浏览器长期保留数据
+if (!window.claude && location.protocol === 'https:') {
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+  try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){}); } catch(e){}
+}
+})();
+</script>
+</body>
+</html>

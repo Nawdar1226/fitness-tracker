@@ -1,0 +1,17 @@
+{
+  "name": "轻断食计时",
+  "short_name": "轻断食",
+  "description": "开始吃饭时按一下，自动计算禁食和进食窗口",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F3F8",
+  "theme_color": "#2F43C2",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

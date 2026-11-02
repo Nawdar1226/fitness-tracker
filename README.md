@@ -12,6 +12,11 @@ Alle Daten bleiben lokal auf dem iPhone.
 - **Verlauf**: Kalender und alle Trainings mit Details
 - **Plan**: Übungen, Sätze, Wiederholungen und Tages-Check frei anpassbar, dazu Backup als JSON-Datei
 
+## Zweite App: Intervallfasten (`fasting/`)
+
+Eigene Web-App mit eigenem Home-Bildschirm-Icon, unabhängig vom Fitness Tracker:
+`https://nawdar1226.github.io/fitness-tracker/fasting/` (Details in `fasting/README.md`).
+
 ## Auf dem iPhone installieren
 
 1. In **Safari** öffnen: `https://nawdar1226.github.io/fitness-tracker/`
